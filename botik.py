@@ -4,10 +4,18 @@ from collections import UserDict
 
 class Field:
     def __init__(self):
-        self.value = None
+        self._value = None
 
     def __str__(self):
-        return str(self.value)
+        return str(self._value)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        self._value = new_value
 
 
 class Name(Field):
@@ -15,19 +23,32 @@ class Name(Field):
 
 
 class Phone(Field):
-    pass
+    @Field.value.setter
+    def value(self, new_value):
+        if new_value:
+            if not self.is_valid_phone_number(new_value):
+                raise ValueError("Invalid phone number format.")
+        Field.value.__set__(self, new_value)
+
+    @staticmethod
+    def is_valid_phone_number(phone_number):
+        return True
+
 
 
 class Birthday(Field):
-    def __set__(self, instance, value):
-        if value:
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        if new_value:
             try:
-                datetime.datetime.strptime(value, "%Y-%m-%d")
-                self.value = value
+                datetime.datetime.strptime(new_value, "%Y-%m-%d")
             except ValueError:
                 raise ValueError("Invalid birthday format. Please use 'YYYY-MM-DD' format.")
-        else:
-            self.value = None
+        self._value = new_value
 
 
 class Record:
@@ -43,7 +64,7 @@ class Record:
 
     def add_phone(self, number):
         phone = Phone()
-        phone.value = number
+        phone.value = number  
         self.phones.append(phone)
 
     def remove_phone(self, number):
@@ -93,7 +114,6 @@ class AddressBook(UserDict):
             result += f"{record}\n\n"
         return result.strip()
 
-
 def input_error(func):
     def inner(*args, **kwargs):
         try:
@@ -110,16 +130,24 @@ def input_error(func):
 
 contacts = AddressBook()
 
-
 @input_error
 def add_contact(name, phone=None, birthday=None):
     if name in contacts:
-        return f"Contact '{name}' already exists."
-    record = Record(name, birthday)
+        record = contacts[name]
+    else:
+        record = Record(name, birthday)
+
     if phone:
-        record.add_phone(phone)
-    contacts.add_record(record)
+        record.phones = []  # Clear existing phones
+        phone_obj = Phone()
+        phone_obj.value = phone
+        record.add_phone(phone_obj)
+
+    if name not in contacts:
+        contacts.add_record(record)
+
     return f"Added contact: {name}, {phone}, {birthday}"
+
 
 
 @input_error
